@@ -1,6 +1,5 @@
 @using Domain.ViewModel
 @using WebClient.Abstractions
-
 @namespace WebClient.Components
 @inject IMemberDataService memberDataService
 
@@ -12,12 +11,14 @@
         line-height: 48px;
         font-family: "Poppins SemiBold";
     }
+
     .create-wrapper label {
         color: #000000;
         font-size: 24px;
         line-height: 36px;
         font-family: "Poppins Light";
     }
+
     .create-wrapper .avtar {
         width: 48px;
         height: 48px;
@@ -25,25 +26,45 @@
         display: inline-block;
         cursor: pointer;
     }
+
+    .selected-avatar {
+        border: 2px solid #666;
+        -webkit-box-shadow: inset 0px 0px 1px 1px rgba(255, 255, 255, 1);
+        -moz-box-shadow: inset 0px 0px 1px 1px rgba(255, 255, 255, 1);
+        box-shadow: inset 0px 0px 2px 2px rgba(255, 255, 255, 1);
+    }
+
+    .invalid-avatar {
+        /* display: none; */
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 80%;
+        color: #dc3545;
+    }
+
     @@media(max-width: 1400px) {
         .create-wrapper .header {
             font-size: 24px;
             line-height: 32px;
         }
+
         .create-wrapper label {
             font-size: 16px;
             line-height: 24px;
         }
+
         .create-wrapper .avtar {
             width: 32px;
             height: 32px;
         }
     }
+
     @@media(max-width: 767.98px) {
         .create-wrapper .header {
             font-size: 16px;
             line-height: 24px;
         }
+
         .create-wrapper .avtar {
             width: 16px;
             height: 16px;
@@ -54,87 +75,144 @@
 <div class="create-wrapper col-12">
     <div class="col-12 header pb-5 pb-sm-3"> Add Family Member </div>
     <div class="row m-0 form">
-        <div class="row m-0 col-12 p-0">
-            <Field class="col-6 custom-input">
-                <FieldLabel>First Name</FieldLabel>
-                <TextEdit @bind-Text="@member.FirstName"/>
-            </Field>
-            <Field class="col-6 custom-input">
-                <FieldLabel>Last Name</FieldLabel>
-                <TextEdit @bind-Text="@member.LastName"/>
-            </Field>
-        </div>
-        <div class="row m-0 col-12 p-0">
-            <Field class="col-12 custom-input">
-                <FieldLabel>Email Address</FieldLabel>
-                <TextEdit @bind-Text="@member.Email"/>
-            </Field>
-        </div>
-        <div class="row m-0 col-12 p-0">
-            <Field class="col-12 custom-input">
-                <FieldLabel>Roles</FieldLabel>
-                <TextEdit @bind-Text="@member.Roles"/>
-            </Field>
-        </div>
-        <div class="row m-0 col-12 p-0">
-            <Field class="col-12">
-                <FieldLabel>Select Avtar</FieldLabel>
-                <div class="row m-0 col-12 p-0">
-                    <div class="col-9 p-0">
-                        @foreach (var item in avatars)
-                        {
-                            <div class="avtar" @onclick="@(e => OnAvatarSelect(item))" style="background-color: @item;"></div>
-                        }
+
+        <Validations @ref="validations" Mode="ValidationMode.Manual">
+
+            <div class="row m-0 col-12 p-0">
+                <Validation Validator="@ValidationRule.IsNotEmpty">
+                    <Field class="col-6 custom-input">
+                        <FieldLabel>First Name</FieldLabel>
+                        <TextEdit @bind-Text="@member.FirstName">
+                            <Feedback>
+                                <ValidationError>Enter valid first name</ValidationError>
+                            </Feedback>
+                        </TextEdit>
+                    </Field>
+                </Validation>
+
+                <Validation Validator="@ValidationRule.IsNotEmpty">
+                    <Field class="col-6 custom-input">
+                        <FieldLabel>Last Name</FieldLabel>
+                        <TextEdit @bind-Text="@member.LastName">
+                            <Feedback>
+                                <ValidationError>Enter valid last name</ValidationError>
+                            </Feedback>
+                        </TextEdit>
+                    </Field>
+                </Validation>
+            </div>
+            <div class="row m-0 col-12 p-0">
+                <Validation Validator="@ValidationRule.IsEmail">
+                    <Field class="col-12 custom-input">
+                        <FieldLabel>Email Address</FieldLabel>
+                        <TextEdit @bind-Text="@member.Email">
+                            <Feedback>
+                                <ValidationError>Enter valid email!</ValidationError>
+                            </Feedback>
+                        </TextEdit>
+                    </Field>
+                </Validation>
+            </div>
+            <div class="row m-0 col-12 p-0">
+                <Validation Validator="@ValidationRule.IsNotEmpty">
+                    <Field class="col-12 custom-input">
+                        <FieldLabel>Roles</FieldLabel>
+                        <TextEdit @bind-Text="@member.Roles">
+                            <Feedback>
+                                <ValidationError>Enter valid role</ValidationError>
+                            </Feedback>
+                        </TextEdit>
+                    </Field>
+                </Validation>
+            </div>
+            <div class="row m-0 col-12 p-0">
+                <Field class="col-12">
+                    <FieldLabel>Select Avtar</FieldLabel>
+                    <div class="row m-0 col-12 p-0">
+                        <div class="col-9 p-0">
+                            @foreach (var item in avatars)
+                            {
+        <div class="avtar @(member.Avatar == item ? "selected-avatar" : "") " @onclick="@(e => OnAvatarSelect(item))" style="background-color: @item;"></div>}
+                        </div>
+                        <div class="col-3 p-0 text-right">
+                            @if (member.Id == Guid.Empty)
+                            {
+        <Button class="add-btn px-3" @onclick="@OnAddClick">Add Member</Button> }
+    else
+    {
+<Button class="add-btn px-3" @onclick="@OnUpdateClick">Update Member</Button>}
+
+                        </div>
                     </div>
-                    <div class="col-3 p-0 text-right">
-                        @if (member.Id == Guid.Empty)
-                        {
-                            <Button class="add-btn px-3" @onclick="@OnAddClick">Add Member</Button>
-                        }
-                        else
-                        {
-                            <Button class="add-btn px-3" @onclick="@OnUpdateClick">Update Member</Button>
-                        }
-                        
+                </Field>
+            </div>
+            <div class="row m-0 col-12 p-0">
+                <Field class="col-12">
+                    <div class="row m-0 col-12 p-0">
+                        <div class="col-9 p-0">
+                            @if (string.IsNullOrEmpty(member.Avatar))
+                            {
+        <div class="invalid-avatar" style="">
+            You must select any of this avatar.
+        </div>}
+                        </div>
+
                     </div>
-                </div>
-            </Field>
-        </div>
+                </Field>
+            </div>
+        </Validations>
     </div>
 </div>
 
-@code {
-
-    private MemberVm member;
+@code { private MemberVm member;
     private string[] avatars = new string[] { "#FE4E4E", "#FEB84E", "#FEEC4E", "#3EC732", "#4EFEF3", "#4E7FFE", "#E54EFE", "#C17216" };
+    protected Validations validations;
 
     protected override Task OnInitializedAsync()
     {
         member = memberDataService.SelectedMember ?? new MemberVm();
+
+        SetDefaultAvatarForMember();
+
         memberDataService.SelectedMemberChanged += MemberDataServiceOnSelectedMemberChanged;
+
         return base.OnInitializedAsync();
     }
 
     private void MemberDataServiceOnSelectedMemberChanged(object sender, EventArgs e)
     {
         member = memberDataService.SelectedMember ?? new MemberVm();
-
+        SetDefaultAvatarForMember();
         StateHasChanged();
+    }
+
+    private void SetDefaultAvatarForMember()
+    {
+        //member default avatar
+        if (memberDataService.SelectedMember == null || memberDataService.SelectedMember.Id == Guid.Empty)
+            member.Avatar = avatars.FirstOrDefault();
     }
 
     private void OnUpdateClick()
     {
-        memberDataService.UpdateMember(member);
+        if (validations.ValidateAll() && !(string.IsNullOrEmpty(member.Avatar)))
+        {
+            validations.ClearAll();
+            memberDataService.UpdateMember(member);
+        }
     }
 
     private void OnAddClick()
     {
-        memberDataService.CreateMember(member);
+        if (validations.ValidateAll() && !(string.IsNullOrEmpty(member.Avatar)))
+        {
+            validations.ClearAll();
+            memberDataService.CreateMember(member);
+        }
     }
 
     private void OnAvatarSelect(string item)
     {
         member.Avatar = item;
     }
-
-}
+    }

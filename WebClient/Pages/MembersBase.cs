@@ -3,15 +3,12 @@ using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
 using WebClient.Abstractions;
 
 namespace WebClient.Pages
 {
-    public class MembersBase: ComponentBase
-    {       
+    public class MembersBase : ComponentBase
+    {
         protected List<MemberVm> members = new List<MemberVm>();
         protected List<MenuItem> leftMenuItem = new List<MenuItem>();
 
@@ -20,8 +17,8 @@ namespace WebClient.Pages
 
         [Inject]
         public IMemberDataService MemberDataService { get; set; }
-        
-        protected override async Task OnInitializedAsync()
+
+        protected override void OnInitialized()
         {
             UpdateMembers();
             ReloadMenu();
@@ -42,17 +39,7 @@ namespace WebClient.Pages
             StateHasChanged();
         }
 
-        void UpdateMembers()
-        {
-            var result = MemberDataService.Members;
-
-            if (result.Any())
-            {
-                members = result.ToList();
-            }
-        }
-
-        void ReloadMenu()
+        private void ReloadMenu()
         {
             for (int i = 0; i < members.Count; i++)
             {
@@ -64,16 +51,15 @@ namespace WebClient.Pages
                 });
             }
         }
-       
-        protected void onAddItem()
-        {
-            showCreator = true;
-            StateHasChanged();
-        }
 
-        protected void onMemberAdd(MemberVm familyMember)
+        protected void UpdateMembers()
         {
-            MemberDataService.CreateMember(familyMember);            
+            var result = MemberDataService.Members;
+
+            if (result.Any())
+            {
+                members = result.ToList();
+            }
         }
 
     }

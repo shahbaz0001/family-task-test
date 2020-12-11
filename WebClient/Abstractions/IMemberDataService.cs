@@ -15,6 +15,7 @@ namespace WebClient.Abstractions
 
         event EventHandler MembersChanged;
         event EventHandler SelectedMemberChanged;
+
         event EventHandler<string> UpdateMemberFailed;
         event EventHandler<string> CreateMemberFailed;
 

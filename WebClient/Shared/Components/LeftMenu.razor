@@ -1,47 +1,66 @@
 @using Core.Extensions.ModelConversion
 @using Domain.ClientSideModels
+@using Pages
 
 @namespace WebClient.Shared.Components
 
 @inject WebClient.Abstractions.IMemberDataService memberService
+@inject WebClient.Abstractions.ITaskDataService taskService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime;
 <style>
+
+    .no-drop {
+        border: 2px dashed red !important;
+    }
+
+    .can-drop {
+        border: 2px dashed green !important;
+    }
+
     .menu-wrapper {
         background: #FBFBFB;
         box-shadow: 2px 0px 4px 2px rgba(0, 0, 0, 0.12);
         overflow-y: auto;
         height: 100%;
     }
-    .menu-wrapper .menu-item {
-        background: #FFFFFF;
-        box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.12);
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        border: 3px solid #FFFFFF;
-    }
-    .menu-wrapper .menu-item.active {
-        border: 3px solid #CC1778;
-    }
-    .menu-wrapper .add-menu-item {
-        border: 1px dashed #000000;
-        box-sizing: border-box;
-        filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.12));
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+
+        .menu-wrapper .menu-item {
+            background: #FFFFFF;
+            box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.12);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border: 3px solid #FFFFFF;
+        }
+
+            .menu-wrapper .menu-item.active {
+                border: 3px solid #CC1778;
+            }
+
+        .menu-wrapper .add-menu-item {
+            border: 1px dashed #000000;
+            box-sizing: border-box;
+            filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.12));
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
     .add-menu-item .fa {
         font-size: 12px;
     }
+
     .menu-wrapper .label {
         color: #000000;
         font-family: "Poppins Regular";
         font-size: 24px;
         line-height: 36px;
     }
+
     .menu-wrapper .avtar {
         width: 32px;
         height: 32px;
@@ -53,11 +72,13 @@
             font-size: 16px;
             line-height: 24px;
         }
+
         .menu-wrapper .avtar {
             width: 24px;
             height: 24px;
         }
     }
+
     @@media(max-width: 767.98px) {
         .menu-wrapper .avtar {
             width: 16px;
@@ -67,31 +88,52 @@
 </style>
 
 <div class="menu-wrapper col-12 p-0">
-    @if(MenuItems != null && MenuItems.Count > 0) {
-        @foreach (var item in MenuItems) {
-            <div class="menu-item col-10 offset-1 p-3 my-4 p-sm-2 @(item.isActive ? "active" : "")" @onclick="@(e => SelectMember(item.referenceId))">
-                @if(item.iconColor != null) {
+    @if (MenuItems != null && MenuItems.Count > 0)
+    {
+        @foreach (var item in MenuItems)
+        {
+            <div class="@_memberMenuItemClass col-10 offset-1 p-3 my-4 p-sm-2 @_memberMenuDropzoneClass-@item.referenceId @(item.isActive ? "active" : "")"
+                 ondragover="event.preventDefault();"
+                 ondragstart="event.dataTransfer.setData('', event.target.id);"
+                 @onclick="@(e => SelectMember(item.referenceId))"
+                 @ondrop="@(() => HandleDrop(item))"
+                 @ondragenter="@(() => HandleDragEnter(item))"
+                 @ondragleave="@(() => HandleDragLeave(item))">
+                @if (item.iconColor != null)
+                {
                     <div class="avtar mr-3" style="background-color: @(item.iconColor);"> </div>
                 }
                 <div class="label"> @item.label </div>
             </div>
         }
     }
-    
+
     <div class="add-menu-item label col-10 offset-1 p-3 my-4 p-sm-2" @onclick="@OnAddItem">
         <span class="fa fa-plus"></span> &nbsp; Add Member
     </div>
 </div>
 
 @code {
+
+
+
+    private string _memberMenuItemClass = "menu-item";
+    private string _memberMenuDropzoneClass = "member-dropzone";
+    private string _dropClassName = "can-drop";
+    private string _noDropClassName = "no-drop";
+
+    public List<MenuItem> MenuItems { get; set; }
+
     protected override Task OnInitializedAsync()
     {
-        MenuItems = new List<MenuItem> {new MenuItem() {label = "All Tasks"}};
+
+        MenuItems = new List<MenuItem> { new MenuItem() { label = "All Tasks" } };
         MenuItems.AddRange(memberService.Members.ToMenuItems());
         memberService.MembersChanged += MemberServiceOnMembersChanged;
         memberService.SelectedMemberChanged += MemberServiceOnSelectedMemberChanged;
 
-        if (memberService.SelectedMember != null)
+        ///Reason : Remove bcz of Already added on MemberChanged Event
+        if (memberService.SelectedMember != null && memberService.SelectedMember.Id != Guid.Empty)
         {
             SetActiveItem(memberService.SelectedMember.Id);
         }
@@ -102,9 +144,25 @@
     private void MemberServiceOnSelectedMemberChanged(object sender, EventArgs e)
     {
         InactivateAllItems();
-        if(memberService.SelectedMember != null)
+
+        if (memberService.SelectedMember != null)
+        {
             SetActiveItem(memberService.SelectedMember.Id);
+        }
+
         StateHasChanged();
+
+
+        if (memberService.SelectedMember == null)
+        {
+            NavigationManager.NavigateTo("/members");
+            return;
+        }
+        else
+        {
+            //Reason : Added bcz if user is already selected it does display it's task
+            taskService.CallbackTaskList();
+        }
     }
 
     private void MemberServiceOnMembersChanged(object sender, EventArgs e)
@@ -112,10 +170,16 @@
         MenuItems.Clear();
         MenuItems.Add(new MenuItem() { label = "All Tasks" });
         MenuItems.AddRange(memberService.Members.ToMenuItems());
+
+        ///Reason : Added bcz of Active member not shown on update
+        if (memberService.SelectedMember != null)
+        {
+            SetActiveItem(memberService.SelectedMember.Id);
+        }
+
         StateHasChanged();
     }
 
-    public List<MenuItem> MenuItems {get; set;}
 
     private void InactivateAllItems()
     {
@@ -136,9 +200,17 @@
         }
     }
 
-    void SelectMember(Guid id)
+    private void SelectMember(Guid id)
     {
+        //if (memberService.SelectedMember != null && memberService.SelectedMember.Id == Guid.Empty && !NavigationManager.Uri.Contains("manage-tasks"))
+        if (id == Guid.Empty && !NavigationManager.Uri.Contains("manage-tasks"))
+        {
+            NavigationManager.NavigateTo("/manage-tasks");
+            //return;
+        }
+
         memberService.SelectMember(id);
+        //taskService.GetTaskMember(id);
     }
 
     private void OnAddItem()
@@ -146,4 +218,34 @@
         memberService.SelectNullMember();
     }
 
+    private void HandleDragEnter(MenuItem item)
+    {
+        if (taskService.SelectedTask.AssignedToId == item.referenceId)
+            JSRuntime.InvokeVoidAsync("Custom.AddDragabbleElementClassByClassName", _memberMenuItemClass, _memberMenuDropzoneClass + "-" + item.referenceId, _noDropClassName);
+        else
+            JSRuntime.InvokeVoidAsync("Custom.AddDragabbleElementClassByClassName", _memberMenuItemClass, _memberMenuDropzoneClass + "-" + item.referenceId, _dropClassName);
+    }
+
+    private void HandleDragLeave(MenuItem item)
+    {
+        if (taskService.SelectedTask.AssignedToId == item.referenceId)
+            JSRuntime.InvokeVoidAsync("Custom.RemoveDragabbleElementClassByClassName", _memberMenuDropzoneClass + "-" + item.referenceId, _noDropClassName);
+        else
+            JSRuntime.InvokeVoidAsync("Custom.RemoveDragabbleElementClassByClassName", _memberMenuDropzoneClass + "-" + item.referenceId, _dropClassName);
+    }
+
+    private void HandleDrop(MenuItem item)
+    {
+        if (taskService.SelectedTask.AssignedToId == item.referenceId)
+        {
+            JSRuntime.InvokeVoidAsync("Custom.RemoveDragabbleElementClassByClassName", _memberMenuDropzoneClass + "-" + item.referenceId, _noDropClassName);
+        }
+        else
+        {
+            //Update assign member id to selected dropzone
+            taskService.SelectedTask.AssignedToId = item.referenceId;
+            taskService.UpdateTask(taskService.SelectedTask);
+            JSRuntime.InvokeVoidAsync("Custom.RemoveDragabbleElementClassByClassName", _memberMenuDropzoneClass + "-" + item.referenceId, _dropClassName);
+        }
+    }
 }

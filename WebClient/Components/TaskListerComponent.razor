@@ -1,13 +1,37 @@
-@using WebClient.Abstractions
-@using WebClient.Shared.Models
-@using Domain.ViewModel
-
-@inject ITaskDataService taskService;
-@inject IMemberDataService memberService;
-
 @namespace WebClient.Components
+@using WebClient.Abstractions
+@using Domain.ViewModel
+@inject IMemberDataService memberService;
+@inject ITaskDataService taskService;
+@inject IJSRuntime JSRuntime;
 
 <style>
+
+
+    .draggable {
+        margin-bottom: 10px;
+        padding: 10px 25px;
+        border: 1px solid #424d5c;
+        cursor: grab;
+        background: #5c6b7f;
+        border-radius: 5px;
+        /* color: #ffffff;
+        width: 250px;*/
+    }
+
+        .draggable:active {
+            cursor: grabbing;
+        }
+
+    .dragging {
+        cursor: grabbing;
+    }
+
+
+    .drag-start {
+        border: solid 2px green !important;
+    }
+
     .task-wrapper .task-item {
         background: #FFFFFF;
         border: 1px solid #C5C9C9;
@@ -16,26 +40,32 @@
         font-size: 24px;
         font-family: "Poppins Light";
     }
+
     .done-text {
         text-decoration: line-through;
     }
+
     .task-wrapper .avtar {
         width: 32px;
         height: 32px;
         border-radius: 50%;
     }
-    @@media(max-width: 1400px) { 
-        .task-wrapper .task-item { 
+
+    @@media(max-width: 1400px) {
+        .task-wrapper .task-item {
             font-size: 16px;
         }
+
         .task-wrapper .avtar {
             width: 24px;
             height: 24px;
         }
+
         .delete-icon {
             width: 25px;
         }
     }
+
     @@media(max-width: 767.98px) {
         .task-wrapper .avtar {
             width: 16px;
@@ -45,39 +75,56 @@
 </style>
 
 <div class="task-wrapper">
-    @foreach (var item in tasks)
+    @foreach (var item in _tasks)
     {
-        <div class="task-item p-3 my-3 row m-0">
+        <div class="@_taskItemClassName p-3 my-3 row m-0 draggable @_dragCSS-@item.Id" draggable="true"
+             @ondragstart="@(() => HandleDragStart(item))"
+             @ondragend="@(() => HandleDragEnd(item))">
             <div class="col-10 p-0">
-                <Check TValue="bool" Checked="@item.IsDone" CheckedChanged="@(val => ToggleTask(item))">
-                    <span class="@(item.IsDone ? "done-text" : "")">@item.Text</span>
+                <Check TValue="bool" Checked="@item.IsComplete" CheckedChanged="@(val => ToggleTask(item))">
+                    <span class="@(item.IsComplete ? "done-text" : "")">@item.Subject</span>
                 </Check>
+
             </div>
+
             <div class="col-2 p-0 d-flex justify-content-end align-items-center">
-                @if (item.Member != null) {
-                    <div class="avtar mr-1" style="background-color: @selectedMember.Avatar;"></div>
+                @if (_members.Any())
+                {
+                    @if (item.AssignedToId.HasValue && item.AssignedToId.Value != Guid.Empty)
+                    {
+                        <div class="avtar mr-1" style="background-color: @(_members.Any()?_members.FirstOrDefault(f=>f.Id==item.AssignedToId).Avatar:"");"></div>
+                    }
                 }
-                <img class="delete-icon" src="/assets/images/delete-icon.svg"/>
+                <img class="delete-icon" src="/assets/images/delete-icon.svg" />
             </div>
         </div>
     }
+
 </div>
 
 @code  {
-    private List<TaskModel> tasks = new List<TaskModel>();
-    private MemberVm selectedMember;
+
+    private MemberVm _selectedMember;
+    private List<TaskViewModel> _tasks = new List<TaskViewModel>();
+    private List<MemberVm> _members = new List<MemberVm>();
+    private string _dragCSS = "drag-task";
+    private string _dragClassName = "drag-start";
+    private string _taskItemClassName = "task-item";
+
 
     protected override Task OnInitializedAsync()
     {
-        memberService.SelectedMemberChanged += MemberServiceOnSelectedMemberChanged;
-        taskService.TasksUpdated += TaskServiceOnTasksUpdated;
+        taskService.TaskUpdated += TaskServiceOnTasksUpdated;
+        memberService.MembersChanged += MemberServiceOnMembersChanged;
+
         LoadCurrentTasks();
         return base.OnInitializedAsync();
     }
 
-    private void ToggleTask(TaskModel model)
+    private void ToggleTask(TaskViewModel model)
     {
-        taskService.ToggleTask(model.Id);
+        model.IsComplete = !model.IsComplete;
+        taskService.UpdateTask(model);
         StateHasChanged();
     }
 
@@ -86,24 +133,36 @@
         LoadCurrentTasks();
     }
 
-    private void MemberServiceOnSelectedMemberChanged(object sender, EventArgs e)
+    private void MemberServiceOnMembersChanged(object sender, EventArgs e)
     {
-        LoadCurrentTasks();
+        _members = (List<MemberVm>)((IMemberDataService)sender).Members;
     }
 
     private void LoadCurrentTasks()
     {
-        selectedMember = memberService.SelectedMember;
-
-        if (selectedMember == null || selectedMember.Id == Guid.Empty)
+        _selectedMember = memberService.SelectedMember;
+        _members = (List<MemberVm>)memberService.Members;
+        if (_selectedMember == null || _selectedMember.Id == Guid.Empty)
         {
-            tasks = taskService.Tasks;
-            StateHasChanged();
+            _tasks = (List<TaskViewModel>)taskService.Tasks;
+
+            if (_tasks.Any())
+                StateHasChanged();
             return;
         };
-
-        tasks = taskService.Tasks.Where(t => t.Member == selectedMember.Id).ToList();
+        _tasks = taskService.Tasks.Where(t => t.AssignedToId == _selectedMember.Id).ToList();
         StateHasChanged();
+    }
+
+    private void HandleDragStart(TaskViewModel task)
+    {
+        taskService.SetTask(task);
+        JSRuntime.InvokeVoidAsync("Custom.AddDragabbleElementClassByClassName", _taskItemClassName, _dragCSS + "-" + task.Id, _dragClassName);
+    }
+
+    private void HandleDragEnd(TaskViewModel task)
+    {
+        JSRuntime.InvokeVoidAsync("Custom.RemoveDragabbleElementClassByClassName", _dragCSS + "-" + task.Id, _dragClassName);
     }
 
 }

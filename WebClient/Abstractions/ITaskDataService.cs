@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Domain.ViewModel;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using WebClient.Shared.Models;
@@ -13,14 +14,19 @@ namespace WebClient.Abstractions
     /// </summary>
     public interface ITaskDataService
     {
-        List<TaskModel> Tasks { get; }
-        TaskModel SelectedTask { get; }
+        IEnumerable<TaskViewModel> Tasks { get; }
+        TaskViewModel SelectedTask { get; }
 
-        event EventHandler TasksUpdated;
-        event EventHandler TaskSelected;
+        event EventHandler TaskUpdated;
+        event EventHandler TaskCreated;
 
+        event EventHandler<string> UpdateTaskFailed;
+        event EventHandler<string> CreateTaskFailed;
+
+        Task UpdateTask(TaskViewModel taskViewModel);
+        Task CreateTask(TaskViewModel taskViewModel);
         void SelectTask(Guid id);
-        void ToggleTask(Guid id);
-        void AddTask(TaskModel model);
+        void CallbackTaskList();
+        void SetTask(TaskViewModel taskViewModel);
     }
 }
